@@ -5,6 +5,8 @@ let height = 900;
 const filename = "price_data.json"
 const link_color = "#ddd"
 const link_opacity = 1
+const push_force = -100
+const collision_radius = 50
 
 const margin = {
     top: 50,
@@ -19,51 +21,57 @@ let svg = d3.select("body")
     .attr("width", width)
     .attr("height", height)
     .append('g')
-    .attr('transform', 'translate(' + margin.top + ',' + margin.left + ')');
+    .attr('transform', 'translate(' + margin.top + ',' + margin.left + ')')
 
 width = width - margin.left - margin.right;
 height = height - margin.top - margin.bottom;
 
 let linkWidthScale = d3.scaleLinear()
-    .range([1, 20]);
+    .range([1, 25]);
 let linkStrengthScale = d3.scaleLinear()
-    .range([0, 0.15]);
+    .range([0, 0.1]);
 let nodeRadiusScale = d3.scaleSqrt()
 let nodeRadiusFactor = 0.6
 
+let clicked = false
+
 let simulation = d3.forceSimulation()
-    // pull nodes together based on the links between them
+// pull nodes together based on the links between them
     .force("link", d3.forceLink()
-        .id(function(d) {
+        .id(function (d) {
             return d.id;
         })
-        .strength(function(d) {
+        .strength(function (d) {
             return linkStrengthScale(d.price);
         }))
+
     // push nodes apart to space them out
     .force("charge", d3.forceManyBody()
-        .strength(-100))
+        .strength(push_force))
+
     // add some collision detection so they don't overlap
     .force("collide", d3.forceCollide()
-        .radius(50))
+        .radius(collision_radius))
+
     // and draw them around the centre of the space
     .force("center", d3.forceCenter(width / 2, height / 2));
 
+
 // load the graph
-d3.json(filename, function(error, graph) {
+d3.json(filename, function (error, graph) {
     // set the nodes
     let nodes = graph.nodes;
     // links between nodes
     let links = graph.links;
 
-    linkWidthScale.domain(d3.extent(links, function(d) {
+    linkWidthScale.domain(d3.extent(links, function (d) {
         return d.price;
     }));
-    linkStrengthScale.domain(d3.extent(links, function(d) {
+    linkStrengthScale.domain(d3.extent(links, function (d) {
         return d.price;
     }));
 
-    // add the links to our graphic
+    // add the links
     let link = svg.selectAll(".link")
         .data(links)
         .enter()
@@ -71,48 +79,54 @@ d3.json(filename, function(error, graph) {
         .attr("class", "link")
         .attr('stroke', link_color)
         .attr('stroke-opacity', link_opacity)
-        .attr('stroke-width', function(d) {
-            return linkWidthScale(d.price);
+        .attr('stroke-linecap', "round")
+        .attr('stroke-width', function (d) {
+            return linkWidthScale(d.price)
+        })
+
+    // todo
+    // hover text for the node
+    link.append("title")
+        .text(function (d) {
+            if (clicked) {
+                return d.price;
+            }
         });
 
-    // add the nodes to the graphic
+    // add the nodes to the graph
     let node = svg.selectAll(".node")
         .data(nodes)
         .enter()
         .append("g");
 
-    // a circle to represent the node
+    // a circle to represent a node
     node.append("circle")
         .attr("class", "node")
-        .attr("r", function(d) {
+        .attr("r", function (d) {
             return nodeRadiusScale(d.price) * nodeRadiusFactor;
         })
-        .attr("fill", function(d) {
+        .attr("fill", function (d) {
             return d.color;
         })
-        .on("mouseover", mouseOver(.1))
-        .on("mouseout", mouseOut);
+        .on("mouseover", mouseOverNode())
+        .on("mouseout", mouseOutNode)
+        .on('click', clickOnNode)
 
     // hover text for the node
     node.append("title")
-        .text(function(d) {
+        .text(function (d) {
             return d.desc;
         });
 
     // add a label to each node
     node.append("text")
-        .attr("dx", function(d) {
+        .attr("dx", function (d) {
             return nodeRadiusScale(d.price) * nodeRadiusFactor + 1;
         })
         .attr("dy", ".35em")
-        .text(function(d) {
+        .text(function (d) {
             return d.name;
         })
-        .style("stroke", "black")
-        .style("stroke-width", 0.5)
-        // .style("fill", function(d) {
-        //     return d.color;
-        // });
         .style("fill", "black");
 
     // add the nodes to the simulation and
@@ -132,48 +146,43 @@ d3.json(filename, function(error, graph) {
         node.attr("transform", positionNode);
     }
 
-    // links are drawn as curved paths between nodes,
-    // through the intermediate nodes
+    // links are drawn as straight lines between nodes
     function positionLink(d) {
-        let offset = 0;
-
         let midpoint_x = (d.source.x + d.target.x) / 2;
         let midpoint_y = (d.source.y + d.target.y) / 2;
 
-        let dx = (d.target.x - d.source.x);
-        let dy = (d.target.y - d.source.y);
-
-        let normalise = Math.sqrt((dx * dx) + (dy * dy));
-
-        let offSetX = midpoint_x + offset * (dy / normalise);
-        let offSetY = midpoint_y - offset * (dx / normalise);
-
         return "M" + d.source.x + "," + d.source.y +
-            "S" + offSetX + "," + offSetY +
+            "S" + midpoint_x + "," + midpoint_y +
             " " + d.target.x + "," + d.target.y;
     }
 
     // move the node based on forces calculations
     function positionNode(d) {
+        // offset for the left border so the mod names aren't hidden
+        let x_offset = 120
+
+        // offset for top and bottom so mod names arent on top of each other
+        let y_offset = 30
+
         // keep the node within the boundaries of the svg
         if (d.x < 0) {
             d.x = 0
         }
         if (d.y < 0) {
-            d.y = 0
+            d.y = Math.random() * y_offset | 0
         }
-        if (d.x > width) {
-            d.x = width
+        if (d.x > (width - x_offset)) {
+            d.x = width - x_offset
         }
         if (d.y > height) {
-            d.y = height
+            d.y = height - (Math.random() * y_offset | 0)
         }
         return "translate(" + d.x + "," + d.y + ")";
     }
 
     // build a dictionary of nodes that are linked
     let linkedByIndex = {};
-    links.forEach(function(d) {
+    links.forEach(function (d) {
         linkedByIndex[d.source.index + "," + d.target.index] = 1;
     });
 
@@ -183,35 +192,51 @@ d3.json(filename, function(error, graph) {
     }
 
     // fade nodes on hover
-    function mouseOver() {
-        return function(d) {
-            // check all other nodes to see if they're connected
-            // to this one. if so, keep the opacity at 1, otherwise
-            // fade
-            node.style("stroke-opacity", function(o) {
-                return isConnected(d, o) ? 1 : 0;
-            });
-            node.style("fill-opacity", function(o) {
-                return isConnected(d, o) ? 1 : 0;
-            });
-            // also style link accordingly
-            link.style("stroke-opacity", function(o) {
-                return o.source === d || o.target === d ? 1 : 0;
-            });
-            // link.style("stroke", function(o) {
-            //     return o.source === d || o.target === d ? o.source.color : link_color;
-            // });
-            link.style("stroke", function(o) {
-                return o.color;
-            });
+    function mouseOverNode() {
+        return function (d) {
+            if (!clicked) {
+                console.log('hovered')
+                // check all other nodes to see if they're connected
+                // to this one. if so, keep the opacity at 1, otherwise
+                // fade
+                node.style("stroke-opacity", function (o) {
+                    return isConnected(d, o) ? 1 : 0;
+                });
+                node.style("fill-opacity", function (o) {
+                    return isConnected(d, o) ? 1 : 0;
+                });
+
+                // also style link accordingly
+                link.style("stroke-opacity", function (o) {
+                    return o.source === d || o.target === d ? 1 : 0;
+                });
+                link.style("stroke", function (o) {
+                    return o.color;
+                });
+            }
         };
     }
 
-    function mouseOut() {
-        node.style("stroke-opacity", 1);
-        node.style("fill-opacity", 1);
-        link.style("stroke-opacity", link_opacity);
-        link.style("stroke", link_color);
+    function mouseOutNode() {
+        if (!clicked) {
+            console.log('unhovered')
+            node.style("stroke-opacity", 1);
+            node.style("fill-opacity", 1);
+            link.style("stroke-opacity", link_opacity);
+            link.style("stroke", link_color);
+        }
     }
 
+    function clickOnNode() {
+        if (!clicked) {
+            console.log('clicked node')
+            clicked = true
+            mouseOverNode()
+        }
+        else {
+            console.log('unclicked node')
+            clicked = false
+            mouseOutNode()
+        }
+    }
 });
