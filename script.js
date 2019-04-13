@@ -88,9 +88,7 @@ d3.json(filename, function (error, graph) {
     // hover text for the node
     link.append("title")
         .text(function (d) {
-            if (clicked) {
-                return d.price;
-            }
+            return d.price;
         });
 
     // add the nodes to the graph
@@ -158,7 +156,7 @@ d3.json(filename, function (error, graph) {
 
     // move the node based on forces calculations
     function positionNode(d) {
-        // offset for the left border so the mod names aren't hidden
+        // offset for the right border so the mod names aren't hidden
         let x_offset = 120
 
         // offset for top and bottom so mod names arent on top of each other
