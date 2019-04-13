@@ -192,20 +192,18 @@ d3.json(filename, function (error, graph) {
     }
 
     function showConnectedOnly(d) {
-        // check all other nodes to see if they're connected
-        // to this one. if so, keep the opacity at 1, otherwise
-        // fade
-        node.style("stroke-opacity", function (o) {
-            return isConnected(d, o) ? 1 : 0;
-        });
-        node.style("fill-opacity", function (o) {
-            return isConnected(d, o) ? 1 : 0;
+        node.attr('display', function (o) {
+            if (!isConnected(d, o)) {
+                return "none"
+            }
         });
 
-        // also style link accordingly
-        link.style("stroke-opacity", function (o) {
-            return o.source === d || o.target === d ? 1 : 0;
+        link.attr("display", function (o) {
+            if (!(o.source === d || o.target === d)) {
+                return "none";
+            }
         });
+
         link.style("stroke", function (o) {
             return o.color;
         });
@@ -228,6 +226,8 @@ d3.json(filename, function (error, graph) {
             node.style("fill-opacity", 1);
             link.style("stroke-opacity", link_opacity);
             link.style("stroke", link_color);
+            node.attr("display", "initial")
+            link.attr("display", "initial")
         }
     }
 
