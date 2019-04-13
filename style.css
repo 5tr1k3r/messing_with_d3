@@ -1,0 +1,22 @@
+body {
+    background-color: beige;
+}
+
+svg {
+    display: block;
+    margin: auto;
+}
+
+text {
+    font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+}
+
+/*.link {*/
+    /*fill: none;*/
+    /*stroke: #ffffff;*/
+/*}*/
+
+.node {
+    stroke: #000;
+    stroke-width: 1px;
+}
