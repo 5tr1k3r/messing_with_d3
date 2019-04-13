@@ -85,7 +85,7 @@ d3.json(filename, function (error, graph) {
         })
 
     // todo
-    // hover text for the node
+    // hover text for the link
     link.append("title")
         .text(function (d) {
             return d.price;
@@ -108,7 +108,9 @@ d3.json(filename, function (error, graph) {
         })
         .on("mouseover", mouseOverNode())
         .on("mouseout", mouseOutNode)
-        .on('click', clickOnNode)
+        .on('click', function (d) {
+            return clickOnNode(d)
+        })
 
     // hover text for the node
     node.append("title")
@@ -189,28 +191,32 @@ d3.json(filename, function (error, graph) {
         return linkedByIndex[a.index + "," + b.index] || linkedByIndex[b.index + "," + a.index] || a.index === b.index;
     }
 
+    function showConnectedOnly(d) {
+        // check all other nodes to see if they're connected
+        // to this one. if so, keep the opacity at 1, otherwise
+        // fade
+        node.style("stroke-opacity", function (o) {
+            return isConnected(d, o) ? 1 : 0;
+        });
+        node.style("fill-opacity", function (o) {
+            return isConnected(d, o) ? 1 : 0;
+        });
+
+        // also style link accordingly
+        link.style("stroke-opacity", function (o) {
+            return o.source === d || o.target === d ? 1 : 0;
+        });
+        link.style("stroke", function (o) {
+            return o.color;
+        });
+    }
+
     // fade nodes on hover
     function mouseOverNode() {
         return function (d) {
             if (!clicked) {
                 console.log('hovered')
-                // check all other nodes to see if they're connected
-                // to this one. if so, keep the opacity at 1, otherwise
-                // fade
-                node.style("stroke-opacity", function (o) {
-                    return isConnected(d, o) ? 1 : 0;
-                });
-                node.style("fill-opacity", function (o) {
-                    return isConnected(d, o) ? 1 : 0;
-                });
-
-                // also style link accordingly
-                link.style("stroke-opacity", function (o) {
-                    return o.source === d || o.target === d ? 1 : 0;
-                });
-                link.style("stroke", function (o) {
-                    return o.color;
-                });
+                showConnectedOnly(d)
             }
         };
     }
@@ -225,11 +231,11 @@ d3.json(filename, function (error, graph) {
         }
     }
 
-    function clickOnNode() {
+    function clickOnNode(d) {
         if (!clicked) {
             console.log('clicked node')
             clicked = true
-            mouseOverNode()
+            showConnectedOnly(d)
         }
         else {
             console.log('unclicked node')
