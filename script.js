@@ -1,11 +1,11 @@
 // dimensions
-let width = 1200;
-let height = 900;
+let width = 1200
+let height = 900
 
 const filename = "price_data.json"
 const link_color = "#ddd"
 const link_opacity = 1
-const push_force = -100
+const push_force = -400
 const collision_radius = 50
 
 const margin = {
@@ -20,18 +20,19 @@ let svg = d3.select("body")
     .append("svg")
     .attr("width", width)
     .attr("height", height)
-    .append('g')
-    .attr('transform', 'translate(' + margin.top + ',' + margin.left + ')')
+    .append("g")
+    .attr("transform", `translate(${margin.top},${margin.left})`);
 
-width = width - margin.left - margin.right;
-height = height - margin.top - margin.bottom;
+width = width - margin.left - margin.right
+height = height - margin.top - margin.bottom
 
 let linkWidthScale = d3.scaleLinear()
-    .range([1, 25]);
+    .range([3, 40]);
 let linkStrengthScale = d3.scaleLinear()
-    .range([0, 0.1]);
+    .range([0.1, 0.100001]);
 let nodeRadiusScale = d3.scaleSqrt()
-let nodeRadiusFactor = 0.6
+    // .range([10, 100]);
+let nodeRadiusFactor = 0.9
 
 let clicked = false
 
@@ -60,9 +61,9 @@ let simulation = d3.forceSimulation()
 // load the graph
 d3.json(filename, function (error, graph) {
     // set the nodes
-    let nodes = graph.nodes;
+    let nodes = graph.nodes
     // links between nodes
-    let links = graph.links;
+    let links = graph.links
 
     linkWidthScale.domain(d3.extent(links, function (d) {
         return d.price;
@@ -70,6 +71,9 @@ d3.json(filename, function (error, graph) {
     linkStrengthScale.domain(d3.extent(links, function (d) {
         return d.price;
     }));
+    // nodeRadiusScale.domain(d3.extent(links, function (d) {
+    //     return d.price;
+    // }));
 
     // add the links
     let link = svg.selectAll(".link")
@@ -77,14 +81,13 @@ d3.json(filename, function (error, graph) {
         .enter()
         .append("path")
         .attr("class", "link")
-        .attr('stroke', link_color)
-        .attr('stroke-opacity', link_opacity)
-        .attr('stroke-linecap', "round")
-        .attr('stroke-width', function (d) {
+        .attr("stroke", link_color)
+        .attr("stroke-opacity", link_opacity)
+        .attr("stroke-linecap", "round")
+        .attr("stroke-width", function (d) {
             return linkWidthScale(d.price)
-        })
+        });
 
-    // todo
     // hover text for the link
     link.append("title")
         .text(function (d) {
@@ -107,10 +110,10 @@ d3.json(filename, function (error, graph) {
             return d.color;
         })
         .on("mouseover", mouseOverNode())
-        .on("mouseout", mouseOutNode)
-        .on('click', function (d) {
+        .on("mouseout", showEverything)
+        .on("click", function (d) {
             return clickOnNode(d)
-        })
+        });
 
     // hover text for the node
     node.append("title")
@@ -142,18 +145,16 @@ d3.json(filename, function (error, graph) {
 
     // on each tick, update node and link positions
     function ticked() {
-        link.attr("d", positionLink);
-        node.attr("transform", positionNode);
+        link.attr("d", positionLink)
+        node.attr("transform", positionNode)
     }
 
     // links are drawn as straight lines between nodes
     function positionLink(d) {
-        let midpoint_x = (d.source.x + d.target.x) / 2;
-        let midpoint_y = (d.source.y + d.target.y) / 2;
+        let mid_x = (d.source.x + d.target.x) / 2
+        let mid_y = (d.source.y + d.target.y) / 2
 
-        return "M" + d.source.x + "," + d.source.y +
-            "S" + midpoint_x + "," + midpoint_y +
-            " " + d.target.x + "," + d.target.y;
+        return `M${d.source.x},${d.source.y}S${mid_x},${mid_y} ${d.target.x},${d.target.y}`
     }
 
     // move the node based on forces calculations
@@ -177,22 +178,24 @@ d3.json(filename, function (error, graph) {
         if (d.y > height) {
             d.y = height - (Math.random() * y_offset | 0)
         }
-        return "translate(" + d.x + "," + d.y + ")";
+        return `translate(${d.x},${d.y})`;
     }
 
     // build a dictionary of nodes that are linked
     let linkedByIndex = {};
     links.forEach(function (d) {
-        linkedByIndex[d.source.index + "," + d.target.index] = 1;
+        linkedByIndex[`${d.source.index},${d.target.index}`] = 1;
     });
 
     // check the dictionary to see if nodes are linked
     function isConnected(a, b) {
-        return linkedByIndex[a.index + "," + b.index] || linkedByIndex[b.index + "," + a.index] || a.index === b.index;
+        return linkedByIndex[`${a.index},${b.index}`] ||
+               linkedByIndex[`${b.index},${a.index}`] ||
+               a.index === b.index;
     }
 
     function showConnectedOnly(d) {
-        node.attr('display', function (o) {
+        node.attr("display", function (o) {
             if (!isConnected(d, o)) {
                 return "none"
             }
@@ -213,15 +216,15 @@ d3.json(filename, function (error, graph) {
     function mouseOverNode() {
         return function (d) {
             if (!clicked) {
-                console.log('hovered')
+                console.log("hovered")
                 showConnectedOnly(d)
             }
         };
     }
 
-    function mouseOutNode() {
+    function showEverything() {
         if (!clicked) {
-            console.log('unhovered')
+            console.log("redrew everything")
             node.style("stroke-opacity", 1);
             node.style("fill-opacity", 1);
             link.style("stroke-opacity", link_opacity);
@@ -233,14 +236,14 @@ d3.json(filename, function (error, graph) {
 
     function clickOnNode(d) {
         if (!clicked) {
-            console.log('clicked node')
+            console.log("clicked node")
             clicked = true
             showConnectedOnly(d)
         }
         else {
-            console.log('unclicked node')
+            console.log("unclicked node")
             clicked = false
-            mouseOutNode()
+            showEverything()
         }
     }
 });
